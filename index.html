@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ML//TERMINAL — Machine Learning Research Bloomberg</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #111418;
+      --border: #1e2530;
+      --accent-green: #00ff9d;
+      --accent-amber: #ffb800;
+      --accent-blue: #00b4ff;
+      --accent-orange: #ff9f43;
+      --text: #e8e8e8;
+      --text-secondary: #7a8599;
+      --text-muted: #3d4654;
+      --danger: #ff4d4d;
+      --font: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+    }
+
+    html { font-size: 13px; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    ::selection { background: var(--accent-green); color: #000; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* HEADER */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 40px;
+      background: #090b0e;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 16px;
+      z-index: 100;
+    }
+
+    .logo {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent-green);
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    .logo span { color: var(--text-muted); font-weight: 400; }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--text-secondary);
+      letter-spacing: 1px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-green);
+    }
+
+    .status-dot.live { animation: pulse-dot 2s ease-in-out infinite; }
+    .status-dot.fetching { animation: spin-dot 0.8s linear infinite; background: var(--accent-amber); }
+    .status-dot.error { background: var(--danger); }
+    .status-dot.paused { background: var(--accent-amber); }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,255,157,0.4); }
+      50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(0,255,157,0); }
+    }
+
+    @keyframes spin-dot {
+      0% { transform: rotate(0deg); border-radius: 50%; }
+      50% { border-radius: 2px; }
+      100% { transform: rotate(180deg); border-radius: 50%; }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+    }
+
+    .last-updated {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font);
+      font-size: 10px;
+      padding: 4px 10px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: border-color 0.1s, color 0.1s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .btn:hover { border-color: var(--accent-green); color: var(--accent-green); }
+    .btn.primary { border-color: var(--accent-green); color: var(--accent-green); }
+    .btn.primary:hover { background: var(--accent-green); color: #000; }
+    .btn svg { width: 12px; height: 12px; }
+
+    .auto-refresh-toggle {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-switch {
+      width: 28px;
+      height: 14px;
+      background: var(--border);
+      border-radius: 7px;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .toggle-switch.on { background: var(--accent-green); }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: var(--text);
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: left 0.2s;
+    }
+
+    .toggle-switch.on::after { left: 16px; background: #000; }
+
+    .countdown {
+      font-size: 10px;
+      color: var(--accent-amber);
+      min-width: 30px;
+    }
+
+    /* LAYOUT */
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      grid-template-rows: 1fr;
+      gap: 6px;
+      padding: 46px 6px 34px 6px;
+      height: 100vh;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* PANELS */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 8px;
+      height: 8px;
+      border-top: 1px solid var(--accent-green);
+      border-left: 1px solid var(--accent-green);
+    }
+
+    .panel::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 8px;
+      height: 8px;
+      border-top: 1px solid var(--accent-green);
+      border-right: 1px solid var(--accent-green);
+    }
+
+    .panel-header {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .panel-label {
+      font-size: 9px;
+      color: var(--text-secondary);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .panel-body { padding: 10px; flex: 1; overflow-y: auto; }
+
+    /* FILTER PANEL */
+    .filter-panel { flex-shrink: 0; }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .form-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .form-input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 11px;
+      padding: 5px 8px;
+      width: 100%;
+      transition: border-color 0.1s;
+    }
+
+    .form-input:focus { outline: none; border-color: var(--accent-green); }
+
+    .form-input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.5);
+      cursor: pointer;
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .range-val {
+      font-size: 11px;
+      color: var(--accent-green);
+      min-width: 24px;
+      text-align: right;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 10px;
+      height: 10px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .radio-option input { display: none; }
+
+    .radio-option input:checked + .radio-custom { background: var(--accent-green); border-color: var(--accent-green); }
+    .radio-option input:checked + .radio-custom::after { background: #000; }
+    .radio-option input:checked ~ span { color: var(--accent-green); }
+
+    .radio-custom {
+      width: 10px;
+      height: 10px;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      position: relative;
+      flex-shrink: 0;
+      transition: all 0.1s;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .stat-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+    }
+
+    .stat-val {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent-green);
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 8px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .active-filters {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .filter-tag {
+      background: rgba(0,255,157,0.1);
+      border: 1px solid var(--accent-green);
+      color: var(--accent-green);
+      font-size: 9px;
+      padding: 2px 5px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-tag:hover { background: rgba(0,255,157,0.2); }
+
+    .filter-tag .remove {
+      font-size: 11px;
+      line-height: 1;
+      opacity: 0.7;
+    }
+
+    .filter-tag .remove:hover { opacity: 1; }
+
+    .no-filters {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* MAIN AREA */
+    .main-area {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    /* KEYWORD TRENDS PANEL */
+    .trends-panel { flex-shrink: 0; max-height: 200px; }
+
+    /* TIMELINE PANEL */
+    .timeline-panel { flex-shrink: 0; height: 160px; position: relative; }
+    .timeline-panel .panel-body { padding: 8px; display: flex; align-items: center; justify-content: center; }
+    .chart-container { width: 100%; height: 100%; position: relative; }
+    #keywordChart { width: 100% !important; height: 100% !important; }
+    .chart-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--accent-green); font-size: 11px; letter-spacing: 3px; }
+    .chart-loading::after { content: '_'; animation: blink 1s step-end infinite; }
+    .chart-range-controls { display: flex; align-items: center; gap: 8px; }
+    .chart-range-btn { background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-family: var(--font); font-size: 9px; padding: 2px 6px; cursor: pointer; letter-spacing: 1px; transition: all 0.1s; }
+    .chart-range-btn.active { border-color: var(--accent-green); color: var(--accent-green); }
+    .chart-range-btn:hover { border-color: var(--accent-green); color: var(--accent-green); }
+    .chart-top-keywords { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-top: 1px solid var(--border); font-size: 9px; color: var(--text-muted); flex-shrink: 0; overflow: hidden; }
+    .chart-kw-chip { padding: 1px 5px; border-radius: 2px; font-size: 9px; cursor: pointer; opacity: 0.7; transition: opacity 0.1s; white-space: nowrap; }
+    .chart-kw-chip:hover { opacity: 1; }
+    .chart-kw-chip.selected { opacity: 1; font-weight: 600; }
+    .chart-kw-chip { background: rgba(0,255,157,0.12); color: var(--accent-green); border: 1px solid rgba(0,255,157,0.3); }
+
+    .keyword-list { display: flex; flex-direction: column; gap: 5px; }
+
+    .keyword-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .keyword-name {
+      font-size: 10px;
+      color: var(--text);
+      width: 140px;
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+
+    .keyword-name:hover { color: var(--accent-green); }
+
+    .keyword-name.active { color: var(--accent-green); font-weight: 600; }
+
+    .keyword-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .keyword-bar-fill {
+      height: 100%;
+      width: 0;
+      transition: width 0.6s ease-out;
+      border-radius: 1px;
+    }
+
+    .keyword-bar-fill { background: var(--accent-green); }
+
+    .keyword-count {
+      font-size: 9px;
+      color: var(--text-muted);
+      width: 20px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* PAPER STREAM */
+    .paper-panel { flex: 1; min-height: 0; }
+
+    .paper-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px;
+    }
+
+    .paper-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      transition: border-color 0.1s, box-shadow 0.1s;
+      opacity: 0;
+      animation: fade-in 0.3s ease forwards;
+    }
+
+    .paper-card:hover {
+      border-color: rgba(0,255,157,0.25);
+      box-shadow: 0 0 12px rgba(0,255,157,0.05);
+    }
+
+    .paper-card.highlighted {
+      border-color: rgba(0,255,157,0.3);
+      background: rgba(0,255,157,0.02);
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .paper-title-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .paper-arxiv-id {
+      font-size: 9px;
+      color: var(--accent-blue);
+      flex-shrink: 0;
+      margin-top: 2px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .paper-arxiv-id:hover { text-decoration: underline; }
+
+    .paper-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+      flex: 1;
+    }
+
+    .paper-title .keyword-match { color: var(--accent-green); }
+
+    .paper-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 5px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .paper-meta .authors { color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .paper-meta .date { flex-shrink: 0; }
+    .paper-meta .upvotes { display: flex; align-items: center; gap: 3px; color: var(--accent-amber); flex-shrink: 0; }
+    .paper-meta .upvotes svg { width: 9px; height: 9px; }
+
+    .paper-abstract {
+      font-size: 10px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-height: 3.6em;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      position: relative;
+    }
+
+    .paper-abstract.expanded {
+      max-height: 500px;
+    }
+
+    .paper-abstract .fade {
+      display: block;
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 1.5em;
+      background: linear-gradient(transparent, var(--bg));
+      pointer-events: none;
+    }
+
+    .paper-abstract.expanded .fade { display: none; }
+
+    .expand-btn {
+      background: none;
+      border: none;
+      color: var(--accent-blue);
+      font-family: var(--font);
+      font-size: 9px;
+      cursor: pointer;
+      padding: 0;
+      margin-top: 3px;
+    }
+
+    .expand-btn:hover { text-decoration: underline; }
+
+    .paper-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-top: 5px;
+    }
+
+    .paper-tag {
+      font-size: 8px;
+      padding: 1px 5px;
+      border-radius: 2px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: opacity 0.1s;
+      opacity: 0.8;
+    }
+
+    .paper-tag:hover { opacity: 1; }
+    .paper-tag { background: rgba(0,255,157,0.12); color: var(--accent-green); border: 1px solid rgba(0,255,157,0.3); }
+
+    /* LOADING STATE */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--surface);
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    .shimmer {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 20px,
+        rgba(30,37,48,0.5) 20px,
+        rgba(30,37,48,0.5) 21px
+      );
+      animation: shimmer 1.5s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-40px); }
+      100% { transform: translateX(40px); }
+    }
+
+    .loading-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--accent-green);
+      font-size: 11px;
+      letter-spacing: 3px;
+    }
+
+    .loading-text::after {
+      content: '_';
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ERROR STATE */
+    .error-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,77,77,0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    .error-text {
+      color: var(--danger);
+      font-size: 11px;
+      letter-spacing: 2px;
+    }
+
+    .error-sub { color: var(--text-muted); font-size: 10px; }
+
+    /* EMPTY STATE */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 100%;
+      color: var(--text-muted);
+    }
+
+    .empty-state-text { font-size: 11px; }
+    .cursor-blink::after { content: '_'; animation: blink 1s step-end infinite; }
+
+    /* TICKER */
+    .ticker {
+      height: 28px;
+      background: #0a0d10;
+      border-top: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .ticker-label {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 80px;
+      background: #0a0d10;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      padding-left: 8px;
+      font-size: 8px;
+      color: var(--accent-green);
+      letter-spacing: 2px;
+      border-right: 1px solid var(--border);
+    }
+
+    .ticker-track {
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      margin-left: 80px;
+      animation: ticker-scroll 120s linear infinite;
+    }
+
+    .ticker-track:hover { animation-play-state: paused; }
+
+    @keyframes ticker-scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .ticker-item {
+      font-size: 10px;
+      color: var(--text-secondary);
+      padding: 0 20px;
+      cursor: pointer;
+    }
+
+    .ticker-item:hover { color: var(--accent-green); }
+    .ticker-sep { color: var(--accent-green); font-size: 8px; }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        height: auto;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        overflow-y: visible;
+      }
+
+      .filter-panel {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+
+      .filter-panel .panel-body {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .filter-panel .form-group { margin-bottom: 0; flex: 1; min-width: 120px; }
+
+      .main-area { height: auto; min-height: 0; }
+
+      .paper-panel { min-height: 400px; }
+
+      .ticker { display: none; }
+
+      .keyword-name { width: 100px; font-size: 9px; }
+
+      .header-controls .countdown,
+      .header-controls .auto-refresh-toggle { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">[<span>ML</span>//TERMINAL<span>]</span></div>
+  <div class="header-controls">
+    <div class="status-indicator">
+      <div class="status-dot paused" id="statusDot"></div>
+      <span id="statusText">PAUSED</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="auto-refresh-toggle" id="autoRefreshToggle">
+      <div class="toggle-switch" id="toggleSwitch"></div>
+      <span>AUTO</span>
+      <span class="countdown" id="countdown"></span>
+    </div>
+    <span class="last-updated" id="lastUpdated">—</span>
+    <button class="btn primary" id="fetchBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+      </svg>
+      FETCH
+    </button>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="panel filter-panel" id="filterPanel">
+      <div class="panel-header">
+        <span class="panel-label">// CONTROLS</span>
+      </div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label class="form-label">DATE</label>
+          <input type="date" class="form-input" id="dateInput">
+        </div>
+        <div class="form-group">
+            <label class="form-label">PAPER LIMIT</label>
+            <div class="range-row">
+              <input type="range" id="limitRange" min="1" max="100" step="1" value="34">
+              <span class="range-val" id="limitVal">100</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">SORT BY</label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="sort" value="trending" checked>
+              <div class="radio-custom"></div>
+              <span>Trending</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="sort" value="publishedAt">
+              <div class="radio-custom"></div>
+              <span>Recent</span>
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">KEYWORD FILTERS</label>
+          <div class="active-filters" id="activeFilters">
+            <span class="no-filters">— none —</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">STATS</label>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div class="stat-val" id="statPapers">0</div>
+              <div class="stat-label">Papers</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="statKeywords">0</div>
+              <div class="stat-label">Keywords</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="statDate">—</div>
+              <div class="stat-label">Date</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="statShowing">0</div>
+              <div class="stat-label">Showing</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN AREA -->
+  <main class="main-area">
+
+    <!-- KEYWORD TRENDS -->
+    <div class="panel trends-panel" id="trendsPanel">
+      <div class="panel-header">
+        <span class="panel-label">// KEYWORD TRENDS</span>
+        <div class="chart-range-controls">
+          <button class="chart-range-btn" data-days="7">7D</button>
+          <button class="chart-range-btn active" data-days="14">14D</button>
+          <button class="chart-range-btn" data-days="30">30D</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="keyword-list" id="keywordList"></div>
+      </div>
+      <div class="loading-overlay" id="trendsLoading" style="display:none">
+        <div class="shimmer"></div>
+        <div class="loading-text">LOADING</div>
+      </div>
+    </div>
+
+    <!-- TIMELINE CHART -->
+    <div class="panel timeline-panel" id="timelinePanel">
+      <div class="panel-header">
+        <span class="panel-label">// KEYWORD TIMELINE</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-container">
+          <canvas id="keywordChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-loading" id="chartLoading" style="display:none">LOADING</div>
+      <div class="chart-top-keywords" id="chartTopKeywords"></div>
+    </div>
+
+    <!-- PAPER STREAM -->
+    <div class="panel paper-panel" id="paperPanel">
+      <div class="panel-header">
+        <span class="panel-label">// PAPER STREAM</span>
+        <span id="paperCount" style="font-size:9px;color:var(--text-muted)">0 papers</span>
+      </div>
+      <div class="paper-stream" id="paperStream"></div>
+      <div class="loading-overlay" id="paperLoading" style="display:none">
+        <div class="shimmer"></div>
+        <div class="loading-text">FETCHING PAPERS</div>
+      </div>
+      <div class="error-overlay" id="errorOverlay" style="display:none">
+        <div class="error-text">CONNECTION ERROR</div>
+        <div class="error-sub">HF DAILY PAPERS API UNAVAILABLE — TRY AGAIN</div>
+      </div>
+      <div class="empty-state" id="emptyState" style="display:none">
+        <div class="empty-state-text">No papers found for this date<span class="cursor-blink"></span></div>
+      </div>
+    </div>
+
+    <!-- TICKER -->
+    <div class="ticker">
+      <div class="ticker-label">// LIVE</div>
+      <div class="ticker-track" id="tickerTrack"></div>
+    </div>
+
+  </main>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const STOPWORDS = new Set([
+    'the','a','an','of','in','to','for','with','on','at','by','from','as','is','are','was','were',
+    'be','been','being','have','has','had','do','does','did','will','would','could','should',
+    'may','might','must','can','this','that','these','those','i','we','you','he','she','it',
+    'they','them','their','our','my','your','its','which','who','whom','whose','what','when',
+    'where','why','how','all','each','every','both','few','more','most','other','some','such',
+    'no','nor','not','only','own','same','so','than','too','very','just','also','now','here',
+    'there','then','and','or','but','paper','approach','method','methods','model','models','existing','extensive','propose','through','complex',
+    'proposed','show','shows','showed','demonstrate','demonstrated','introduce','introduces',
+    'presented','present','presents','presenting','based','using','used','use','works','work',
+    'state','states','new','novel','different','various','many','several','first','second',
+    'two','one','three','set','sets','given','provide','provides','provided','significantly',
+    'improve','improved','improvement','results','result','performance','achieve','achieves',
+    'achieved','high','higher','low','lower','large','small','dataset','datasets','task','tasks',
+    'system','systems','network','networks','data','learn','learning','learned','train','trained',
+    'training','test','testing','eval','evaluation','Evaluates','experimental','experiments',
+    'experiment','empirical','empirically','compared','compared','analysis','analyze','analysis',
+    'however','therefore','thus','hence','since','while','although','despite','because',
+    'addition','additional','moreover','furthermore','nor','either','neither','able','enable',
+    'enables','allows','allow','helps','help','making','make','takes','take','taken','well',
+    'good','better','best','bad','worse','worst','important','significant','sufficient',
+    'necessary','enough','less','great','substantial','considerable','various','number','numbers',
+    'real','real-world','realworld','world','challenge','challenges','problem','problems',
+    'solution','solutions','framework','frameworks','approach','approaches','aspect','aspects',
+    'part','parts','way','ways','case','cases','point','points','level','form','forms',
+    'type','types','kind','example','examples','notably','particularly','especially',
+    'specifically','mainly','primarily','largely','mostly','generally','typically','usually',
+    'often','sometimes','always','never','already','still','yet','remain','remains','remained',
+    'consist','consists','consisted','contain','contains','included','include','includes',
+    'comprising','comprise','consisting','define','defines','defined','definition','definitions',
+    'described','describe','describes','describing','represented','represent','represents',
+    'represented','observed','observe','observes','observing','found','find','finds','finding',
+    'obtain','obtains','obtained','derive','derives','derived','extracted','extract','extracts',
+    'extraction','utilize','utilizes','utilized','leverages','leverage','leveraged','address',
+    'addresses','addressed','focus','focuses','focused','concern','concerns','concerned',
+    'related','relate','relates','relating','relevant','relevance','involve','involves',
+    'involved','including','included','among','amongst','between','within','across','throughout',
+    'along','alongside','beyond','above','below','under','over','per','via','vs','ie','eg',
+    'et al','et.al','etc','and/or','per','//','---','--','``',"''",'\'\'','""','==','=','→'
+  ]);
+
+  // STATE
+  const state = {
+    papers: [],
+    keywords: [],
+    activeFilters: [],
+    loading: false,
+    error: null,
+    autoRefresh: false,
+    refreshInterval: null,
+    countdown: 0,
+    countdownInterval: null,
+    date: '',
+    limit: 100,
+    sortBy: 'trending',
+    timelineDays: 14,
+    timelineData: [],
+    timelineKeywords: [],
+    chartInstance: null,
+    chartKeywords: []
+  };
+
+  // DOM REFS
+  const $ = id => document.getElementById(id);
+  const statusDot = $('statusDot');
+  const statusText = $('statusText');
+  const dateInput = $('dateInput');
+  const limitRange = $('limitRange');
+  const limitVal = $('limitVal');
+  const activeFilters = $('activeFilters');
+  const statPapers = $('statPapers');
+  const statKeywords = $('statKeywords');
+  const statDate = $('statDate');
+  const statShowing = $('statShowing');
+  const keywordList = $('keywordList');
+  const paperStream = $('paperStream');
+  const paperCount = $('paperCount');
+  const paperLoading = $('paperLoading');
+  const trendsLoading = $('trendsLoading');
+  const errorOverlay = $('errorOverlay');
+  const emptyState = $('emptyState');
+  const tickerTrack = $('tickerTrack');
+  const lastUpdated = $('lastUpdated');
+  const fetchBtn = $('fetchBtn');
+  const autoRefreshToggle = $('autoRefreshToggle');
+  const toggleSwitch = $('toggleSwitch');
+  const countdown = $('countdown');
+  const chartLoading = $('chartLoading');
+  const chartTopKeywords = $('chartTopKeywords');
+  const keywordChart = $('keywordChart');
+  const chartRangeBtns = document.querySelectorAll('.chart-range-btn');
+
+  // INIT
+  function init() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    state.date = `${yyyy}-${mm}-${dd}`;
+    dateInput.value = state.date;
+    dateInput.max = state.date;
+
+    limitRange.addEventListener('input', () => {
+      const sliderVal = parseInt(limitRange.value);
+      state.limit = Math.round(10 ** (1 + (sliderVal - 1) * 3 / 99));
+      limitVal.textContent = state.limit >= 1000 ? Math.round(state.limit / 1000) + 'k' : state.limit;
+    });
+
+    document.querySelectorAll('input[name="sort"]').forEach(r => {
+      r.addEventListener('change', e => { state.sortBy = e.target.value; });
+    });
+
+    autoRefreshToggle.addEventListener('click', toggleAutoRefresh);
+    fetchBtn.addEventListener('click', () => fetchPapers());
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey && document.activeElement.tagName !== 'BUTTON') {
+        fetchPapers();
+      }
+    });
+
+    chartRangeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        chartRangeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.timelineDays = parseInt(btn.dataset.days);
+        if (state.timelineData.length > 0) renderTimelineChart();
+      });
+    });
+
+    fetchPapers();
+  }
+
+  function setStatus(status) {
+    statusDot.className = 'status-dot ' + status;
+    const labels = { fetching: 'FETCHING', live: 'LIVE', error: 'ERROR', paused: 'PAUSED' };
+    statusText.textContent = labels[status] || status.toUpperCase();
+  }
+
+  function showLoading(show, panel) {
+    if (panel === 'paper') {
+      paperLoading.style.display = show ? 'flex' : 'none';
+    } else if (panel === 'trends') {
+      trendsLoading.style.display = show ? 'flex' : 'none';
+    } else {
+      paperLoading.style.display = show ? 'flex' : 'none';
+      trendsLoading.style.display = show ? 'flex' : 'none';
+    }
+  }
+
+  function showError(show) {
+    errorOverlay.style.display = show ? 'flex' : 'none';
+    paperLoading.style.display = 'none';
+    trendsLoading.style.display = 'none';
+  }
+
+  function showEmpty(show) {
+    emptyState.style.display = show ? 'flex' : 'none';
+  }
+
+  async function fetchPapers() {
+    if (state.loading) return;
+    state.loading = true;
+    showLoading(true);
+    showError(false);
+    showEmpty(false);
+    setStatus('fetching');
+
+    try {
+      const papers = await loadPapersWithFallback(state.date, state.limit, state.sortBy);
+      state.papers = papers;
+      extractKeywords(papers);
+      renderKeywordTrends();
+      renderPapers();
+      renderTicker(papers);
+      updateStats();
+      setStatus('live');
+      lastUpdated.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+      if (state.autoRefresh) startAutoRefresh();
+
+      fetchTimelineData();
+    } catch (e) {
+      console.error(e);
+      showError(true);
+      setStatus('error');
+    } finally {
+      state.loading = false;
+      showLoading(false);
+    }
+  }
+
+  async function fetchTimelineData() {
+    chartLoading.style.display = 'flex';
+    const days = state.timelineDays;
+    const timelineMap = {};
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+      timelineMap[dateStr] = {};
+    }
+
+    const dates = Object.keys(timelineMap).sort();
+
+    const topKws = state.keywords.slice(0, 8).map(k => k.word);
+    state.chartKeywords = topKws;
+
+    const doRender = () => {
+      state.timelineData = dates.map(date => ({ date, ...timelineMap[date] }));
+      renderTimelineChart();
+    };
+
+    let pending = dates.length;
+    dates.forEach(async date => {
+      try {
+        const url = `https://huggingface.co/api/daily_papers?date=${date}&page=1&limit=50`;
+        const res = await fetch(url);
+        if (!res.ok) { pending--; if (pending === 0) chartLoading.style.display = 'none'; return; }
+        const data = await res.json();
+        if (!Array.isArray(data)) { pending--; if (pending === 0) chartLoading.style.display = 'none'; return; }
+
+        const papers = data.map(item => item.paper || item).filter(Boolean);
+        const combinedText = papers.map(p => `${p.title || ''} ${p.summary || ''}`).join(' ').toLowerCase();
+        for (const kw of state.keywords) {
+          const w = kw.word.toLowerCase();
+          const count = (combinedText.match(new RegExp(escapeRegex(w), 'g')) || []).length;
+          timelineMap[date][w] = count;
+        }
+        doRender();
+      } catch (e) {}
+      pending--;
+      if (pending === 0) chartLoading.style.display = 'none';
+    });
+  }
+
+  function renderTimelineChart() {
+    if (!state.timelineData || state.timelineData.length === 0) return;
+
+    const kws = state.chartKeywords.filter(Boolean);
+    if (kws.length === 0) return;
+
+    const labels = state.timelineData.map(d => d.date.slice(5));
+
+    const datasets = kws.map((kw, idx) => {
+      const data = state.timelineData.map(d => d[kw.toLowerCase()] || 0);
+      const brightness = 255 - (idx * 25);
+      const green = 100 + (idx * 15);
+
+      return {
+        label: kw,
+        data,
+        borderColor: `rgba(0,${Math.max(150, green)},${Math.max(100, brightness - 100)},0.8)`,
+        backgroundColor: `rgba(0,200,130,0.04)`,
+        borderWidth: 1.5,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        tension: 0.3,
+        fill: false
+      };
+    });
+
+    if (state.chartInstance) {
+      state.chartInstance.data.labels = labels;
+      state.chartInstance.data.datasets = datasets;
+      state.chartInstance.update();
+    } else {
+      const ctx = keywordChart.getContext('2d');
+      state.chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 600 },
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(17,20,24,0.95)',
+              borderColor: 'rgba(30,37,48,0.8)',
+              borderWidth: 1,
+              titleColor: '#e8e8e8',
+              bodyColor: '#7a8599',
+              titleFont: { family: "'JetBrains Mono', monospace", size: 11 },
+              bodyFont: { family: "'JetBrains Mono', monospace", size: 10 },
+              padding: 8,
+              callbacks: {
+                title: items => items[0]?.label || '',
+                label: item => ` ${item.dataset.label}: ${item.raw}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(30,37,48,0.5)', drawBorder: false },
+              ticks: { color: '#3d4654', font: { family: "'JetBrains Mono', monospace", size: 9 }, maxTicksLimit: 10 }
+            },
+            y: {
+              grid: { color: 'rgba(30,37,48,0.5)', drawBorder: false },
+              ticks: { color: '#3d4654', font: { family: "'JetBrains Mono', monospace", size: 9 }, stepSize: 1 },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    renderChartKeywordChips();
+  }
+
+  function renderChartKeywordChips() {
+    chartTopKeywords.innerHTML = '<span style="color:var(--text-muted);margin-right:4px">TOP:</span>' +
+      state.chartKeywords.map(kw =>
+        `<span class="chart-kw-chip">${escHtml(kw)}</span>`
+      ).join('');
+  }
+
+  async function loadPapersWithFallback(date, limit, sortBy) {
+    const allPapers = [];
+    let pending = 30;
+    const paperMap = {};
+
+    const fetchDay = async (dayOffset) => {
+      const d = new Date(date);
+      d.setDate(d.getDate() - dayOffset);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      const targetDate = `${yyyy}-${mm}-${dd}`;
+
+      let page = 1;
+      let dayDone = false;
+
+      while (!dayDone) {
+        if (allPapers.length >= limit) { dayDone = true; break; }
+        const url = `https://huggingface.co/api/daily_papers?date=${targetDate}&page=${page}&limit=50`;
+        try {
+          const res = await fetch(url);
+          if (!res.ok) { dayDone = true; break; }
+          const data = await res.json();
+          if (!Array.isArray(data) || data.length === 0) { dayDone = true; break; }
+
+          const papers = data.map(item => item.paper || item).filter(Boolean);
+          papers.forEach(p => { if (!paperMap[p.id]) { paperMap[p.id] = p; allPapers.push(p); } });
+          page++;
+          if (papers.length < 50) { dayDone = true; }
+        } catch (e) { dayDone = true; }
+      }
+      pending--;
+    };
+
+    const promises = [];
+    for (let i = 0; i < 30; i++) promises.push(fetchDay(i));
+    await Promise.all(promises);
+
+    const result = allPapers.slice(0, limit);
+    if (sortBy === 'publishedAt') {
+      result.sort((a,b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+    }
+    return result;
+  }
+
+  function getKeywordCategory(word) {
+    return null;
+  }
+
+  function extractKeywords(papers) {
+    const text = papers.map(p => `${p.title || ''} ${p.summary || ''}`).join(' ');
+    const lower = text.toLowerCase().replace(/[^\w\s-]/g, ' ');
+
+    const tokens = [];
+    const words = lower.split(/\s+/).filter(w => w.length > 2 && !STOPWORDS.has(w) && w.match(/^[a-z]+$/));
+    for (const w of words) tokens.push(w);
+    for (let i = 0; i < words.length - 1; i++) {
+      if (!STOPWORDS.has(words[i]) && !STOPWORDS.has(words[i+1])) {
+        tokens.push(`${words[i]}-${words[i+1]}`);
+      }
+    }
+
+    const freq = {};
+    for (const tok of tokens) {
+      if (tok.length < 3) continue;
+      freq[tok] = (freq[tok] || 0) + 1;
+    }
+
+    const sorted = Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([word, count]) => ({ word, count }));
+
+    state.keywords = sorted;
+  }
+
+  function renderKeywordTrends() {
+    const kws = state.keywords;
+    if (kws.length === 0) {
+      keywordList.innerHTML = '<div style="color:var(--text-muted);font-size:10px;padding:8px">No keyword data available</div>';
+      return;
+    }
+
+    const maxCount = kws[0].count;
+    let html = '';
+    for (let i = 0; i < kws.length; i++) {
+      const kw = kws[i];
+      const pct = (kw.count / maxCount) * 100;
+      const isActive = state.activeFilters.includes(kw.word);
+      html += `
+        <div class="keyword-row" style="animation-delay:${i * 30}ms">
+          <span class="keyword-name ${isActive ? 'active' : ''}" data-kw="${escHtml(kw.word)}">${escHtml(kw.word)}</span>
+          <div class="keyword-bar-wrap">
+            <div class="keyword-bar-fill" style="width:0" data-width="${pct}"></div>
+          </div>
+          <span class="keyword-count">${kw.count}</span>
+        </div>
+      `;
+    }
+    keywordList.innerHTML = html;
+
+    // Animate bars
+    requestAnimationFrame(() => {
+      keywordList.querySelectorAll('.keyword-bar-fill').forEach((bar, idx) => {
+        setTimeout(() => { bar.style.width = bar.dataset.width + '%'; }, idx * 40);
+      });
+    });
+
+    // Click handlers
+    keywordList.querySelectorAll('.keyword-name').forEach(el => {
+      el.addEventListener('click', () => {
+        const kw = el.dataset.kw;
+        toggleFilter(kw);
+      });
+    });
+  }
+
+  function getPaperTags(abstract, title) {
+    const text = `${title || ''} ${abstract || ''}`.toLowerCase();
+    const tags = [];
+    for (const kw of state.keywords) {
+      const w = kw.word.toLowerCase();
+      if (text.includes(w)) {
+        tags.push({ word: kw.word });
+        if (tags.length >= 5) break;
+      }
+    }
+    return tags;
+  }
+
+  function renderPapers() {
+    const filters = state.activeFilters;
+    let filtered = state.papers;
+
+    if (filters.length > 0) {
+      filtered = state.papers.filter(p => {
+        const text = `${p.title || ''} ${p.summary || ''}`.toLowerCase();
+        return filters.some(f => text.includes(f.toLowerCase()));
+      });
+    }
+
+    if (filtered.length === 0 && state.papers.length > 0) {
+      paperStream.innerHTML = `<div style="color:var(--text-muted);font-size:10px;padding:20px;text-align:center">No papers match the active filters<span class="cursor-blink"></span></div>`;
+      paperCount.textContent = `0 / ${state.papers.length} papers`;
+      statShowing.textContent = '0';
+      return;
+    }
+
+    paperCount.textContent = `${filtered.length} paper${filtered.length !== 1 ? 's' : ''}`;
+    statShowing.textContent = filtered.length;
+
+    let html = '';
+    for (let i = 0; i < filtered.length; i++) {
+      const p = filtered[i];
+      const isHighlighted = filters.length > 0;
+      const authors = (p.authors || []).slice(0, 3).map(a => a.name || a.user || a.user?.name || 'Unknown').join(', ');
+      const extraAuthors = (p.authors || []).length > 3 ? ` +${p.authors.length - 3}` : '';
+      const dateStr = p.publishedAt ? formatDate(p.publishedAt) : '—';
+      const upvotes = p.upvotes || 0;
+      const arxivId = p.id || '';
+      const title = p.title || 'Untitled';
+      const summary = p.summary || '';
+      const tags = getPaperTags(summary, title);
+
+      html += `
+        <div class="paper-card ${isHighlighted ? 'highlighted' : ''}" style="animation-delay:${Math.min(i * 30, 300)}ms" id="paper-${i}">
+          <div class="paper-title-row">
+            <a class="paper-arxiv-id" href="https://arxiv.org/abs/${arxivId}" target="_blank" rel="noopener">${arxivId}</a>
+            <div class="paper-title">${highlightText(title, filters)}</div>
+          </div>
+          <div class="paper-meta">
+            <span class="authors">${escHtml(authors)}${extraAuthors ? `<span style="color:var(--text-muted)">${extraAuthors}</span>` : ''}</span>
+            <span class="date">${dateStr}</span>
+            <span class="upvotes">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              ${upvotes}
+            </span>
+          </div>
+          <div class="paper-abstract" id="abstract-${i}">
+            ${escHtml(summary)}
+            <span class="fade"></span>
+          </div>
+          ${summary.length > 200 ? `<button class="expand-btn" data-idx="${i}">[+] expand</button>` : ''}
+          ${tags.length > 0 ? `<div class="paper-tags">${tags.map(t => `<span class="paper-tag" data-kw="${escHtml(t.word)}">${escHtml(t.word)}</span>`).join('')}</div>` : ''}
+        </div>
+      `;
+    }
+
+    paperStream.innerHTML = html || `<div style="color:var(--text-muted);font-size:10px;padding:20px;text-align:center">No papers found for this date<span class="cursor-blink"></span></div>`;
+
+    // Expand handlers
+    paperStream.querySelectorAll('.expand-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = btn.dataset.idx;
+        const abs = document.getElementById('abstract-' + idx);
+        const isExp = abs.classList.toggle('expanded');
+        btn.textContent = isExp ? '[-] collapse' : '[+] expand';
+      });
+    });
+
+    // Tag click handlers
+    paperStream.querySelectorAll('.paper-tag').forEach(tag => {
+      tag.addEventListener('click', () => toggleFilter(tag.dataset.kw));
+    });
+  }
+
+  function renderTicker(papers) {
+    if (papers.length === 0) {
+      tickerTrack.innerHTML = '<span style="color:var(--text-muted);font-size:10px;padding:0 20px">No papers available</span>';
+      return;
+    }
+    const items = papers.slice(0, 20);
+    const text = items.map(p => p.title || 'Untitled').join(' ◆ ');
+    const doubled = text + ' ◆ ' + text;
+    tickerTrack.innerHTML = `<span class="ticker-item">${escHtml(doubled)}</span>`;
+    tickerTrack.addEventListener('click', e => {
+      const el = e.target.closest('.ticker-item');
+      if (!el) return;
+    });
+  }
+
+  function toggleFilter(kw) {
+    const idx = state.activeFilters.indexOf(kw);
+    if (idx >= 0) {
+      state.activeFilters.splice(idx, 1);
+    } else {
+      state.activeFilters.push(kw);
+    }
+    renderActiveFilters();
+    renderPapers();
+    renderKeywordTrends();
+  }
+
+  function renderActiveFilters() {
+    if (state.activeFilters.length === 0) {
+      activeFilters.innerHTML = '<span class="no-filters">— none —</span>';
+    } else {
+      activeFilters.innerHTML = state.activeFilters.map(f =>
+        `<span class="filter-tag" data-kw="${escHtml(f)}">${escHtml(f)} <span class="remove">×</span></span>`
+      ).join('');
+      activeFilters.querySelectorAll('.filter-tag').forEach(tag => {
+        tag.addEventListener('click', () => toggleFilter(tag.dataset.kw));
+      });
+    }
+  }
+
+  function updateStats() {
+    statPapers.textContent = state.papers.length;
+    statKeywords.textContent = state.keywords.length;
+    statDate.textContent = state.date.slice(5);
+  }
+
+  function toggleAutoRefresh() {
+    state.autoRefresh = !state.autoRefresh;
+    toggleSwitch.className = 'toggle-switch' + (state.autoRefresh ? ' on' : '');
+    if (state.autoRefresh) {
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
+  }
+
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    state.countdown = 60;
+    countdown.textContent = `60s`;
+    state.countdownInterval = setInterval(() => {
+      state.countdown--;
+      countdown.textContent = `${state.countdown}s`;
+      if (state.countdown <= 0) {
+        fetchPapers();
+      }
+    }, 1000);
+  }
+
+  function stopAutoRefresh() {
+    if (state.countdownInterval) { clearInterval(state.countdownInterval); state.countdownInterval = null; }
+    if (state.refreshInterval) { clearInterval(state.refreshInterval); state.refreshInterval = null; }
+    countdown.textContent = '';
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function highlightText(text, filters) {
+    if (!filters || filters.length === 0) return escHtml(text);
+    let result = escHtml(text);
+    for (const f of filters) {
+      const regex = new RegExp(`(${escapeRegex(f)})`, 'gi');
+      result = result.replace(regex, '<span class="keyword-match">$1</span>');
+    }
+    return result;
+  }
+
+  function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function formatDate(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toISOString().slice(0, 10);
+    } catch { return iso; }
+  }
+
+  init();
+})();
+</script>
+
+</body>
+</html>
